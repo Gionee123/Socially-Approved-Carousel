@@ -1,12 +1,16 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi'
+import { FiChevronLeft, FiChevronRight, FiPlay, FiPause, FiVolume2, FiVolumeX } from 'react-icons/fi'
 import type { Video } from '../../data/dummyVideos'
 import InnerModal from '../InnerModal/InnerModal'
 
 /* ─── Video Card ──────────────────────────────────────────────── */
 const VideoCard: React.FC<{ video: Video; onClick: () => void }> = ({ video, onClick }) => {
   const cardRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
   const [isVisible, setIsVisible] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+  const [isMuted, setIsMuted] = useState(true)
+  const [isPlaying, setIsPlaying] = useState(true)
 
   useEffect(() => {
     const observer = new IntersectionObserver(([e]) => setIsVisible(e.isIntersecting), {
@@ -16,16 +20,58 @@ const VideoCard: React.FC<{ video: Video; onClick: () => void }> = ({ video, onC
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    if (videoRef.current) {
+      if (isHovered && isPlaying) {
+        videoRef.current.play().catch(() => {})
+      } else {
+        videoRef.current.pause()
+      }
+    }
+  }, [isHovered, isPlaying])
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = isMuted
+    }
+  }, [isMuted])
+
+  const togglePlay = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsPlaying(!isPlaying)
+  }
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsMuted(!isMuted)
+  }
 
   return (
     <div
       ref={cardRef}
       onClick={onClick}
+      onMouseEnter={() => {
+        setIsHovered(true)
+        setIsPlaying(true)
+      }}
+      onMouseLeave={() => {
+        setIsHovered(false)
+      }}
       className="flex-shrink-0 relative cursor-pointer rounded-2xl overflow-hidden group transition-transform duration-300 hover:scale-105 hover:shadow-2xl"
       style={{ width: '176px', height: '313px' }}
     >
-      {/* Thumbnail / skeleton */}
-      {isVisible ? (
+      {/* Video preview or thumbnail */}
+      {isVisible && isHovered ? (
+        <video
+          ref={videoRef}
+          src={video.videoUrl}
+          poster={video.thumbnail}
+          className="w-full h-full object-cover animate-fade-in"
+          loop
+          playsInline
+          muted={isMuted}
+        />
+      ) : isVisible ? (
         <img
           src={video.thumbnail}
           alt={video.title}
@@ -39,18 +85,34 @@ const VideoCard: React.FC<{ video: Video; onClick: () => void }> = ({ video, onC
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
-      {/* Discount badge */}
-    
-
-      {/* Bottom product pill */}
-   
-
-      {/* Play icon on hover */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-        <div className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
-          <FiChevronRight className="text-white ml-1" size={22} />
+      {/* Hover Controls */}
+      {isHovered && (
+        <div className="absolute top-2 right-2 flex items-center gap-1.5 z-10">
+          <button
+            onClick={toggleMute}
+            className="p-1.5 bg-black/60 hover:bg-black/80 rounded-full text-white transition-colors"
+            title={isMuted ? 'Unmute' : 'Mute'}
+          >
+            {isMuted ? <FiVolumeX size={13} /> : <FiVolume2 size={13} />}
+          </button>
+          <button
+            onClick={togglePlay}
+            className="p-1.5 bg-black/60 hover:bg-black/80 rounded-full text-white transition-colors"
+            title={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? <FiPause size={13} /> : <FiPlay size={13} />}
+          </button>
         </div>
-      </div>
+      )}
+
+      {/* Play icon on hover (only show if video is not currently active/hovered) */}
+      {!isHovered && (
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm">
+            <FiChevronRight className="text-white ml-1" size={22} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

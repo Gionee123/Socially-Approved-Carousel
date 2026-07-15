@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { FiX, FiChevronLeft, FiChevronRight, FiSend } from 'react-icons/fi'
+import { FiX, FiChevronLeft, FiChevronRight, FiSend, FiDownload } from 'react-icons/fi'
 import {
   FaHeart, FaRegHeart, FaShareAlt,
-  FaVolumeUp, FaVolumeMute, FaPlay, FaCommentDots
+  FaVolumeUp, FaVolumeMute, FaPlay, FaPause, FaCommentDots
 } from 'react-icons/fa'
 import type { Video } from '../../data/dummyVideos'
 import axios from 'axios'
@@ -22,16 +22,19 @@ interface VideoPlayerCardProps {
   likeCount: number
   commentCount: number
   onLike: () => void
+  onMuteToggle: () => void
   onOpenComments: () => void
 }
 
 /* ─── Video Player Card ───────────────────────────────────────── */
 const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
-  video, isActive, isMuted, liked, likeCount, commentCount, onLike, onOpenComments
+  video, isActive, isMuted, liked, likeCount, commentCount, onLike, onMuteToggle, onOpenComments
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [copied, setCopied] = useState(false)
 
@@ -46,6 +49,7 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
       vid.currentTime = 0
       setIsPlaying(false)
       setProgress(0)
+      setCurrentTime(0)
     }
   }, [isActive])
 
@@ -56,8 +60,35 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
 
   const handleTimeUpdate = () => {
     const vid = videoRef.current
+    if (!vid) return
+    setCurrentTime(vid.currentTime)
+    if (vid.duration) {
+      setDuration(vid.duration)
+      setProgress((vid.currentTime / vid.duration) * 100)
+    }
+  }
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      setDuration(videoRef.current.duration)
+    }
+  }
+
+  const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const vid = videoRef.current
     if (!vid || !vid.duration) return
-    setProgress((vid.currentTime / vid.duration) * 100)
+    const value = parseFloat(e.target.value)
+    const newTime = (value / 100) * vid.duration
+    vid.currentTime = newTime
+    setCurrentTime(newTime)
+    setProgress(value)
+  }
+
+  const formatTime = (secs: number) => {
+    if (isNaN(secs)) return '0:00'
+    const m = Math.floor(secs / 60)
+    const s = Math.floor(secs % 60)
+    return `${m}:${s < 10 ? '0' : ''}${s}`
   }
 
   const togglePlay = (e: React.MouseEvent) => {
@@ -71,7 +102,6 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation()
     const shareData = {
-
       url: typeof window !== "undefined" ? window.location.href : "",
     };
 
@@ -92,9 +122,32 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
     }
   };
 
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const response = await fetch(video.videoUrl)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const filename = video.title.toLowerCase().replace(/[^a-z0-9]+/g, '_') + '.mp4'
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to download video', err)
+      const a = document.createElement('a')
+      a.href = video.videoUrl
+      a.download = video.title + '.mp4'
+      a.target = '_blank'
+      a.click()
+    }
+  }
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden bg-black shadow-2xl">
+    <div className="relative w-full h-full rounded-2xl overflow-hidden bg-black shadow-2xl group">
       {/* Video element */}
       <video
         ref={videoRef}
@@ -105,6 +158,7 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
         muted={isMuted}
         preload="metadata"
         onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
         onWaiting={() => setIsLoading(true)}
         onPlaying={() => setIsLoading(false)}
         onCanPlay={() => setIsLoading(false)}
@@ -143,7 +197,7 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
       {isActive && !isLoading && (
         <button
           onClick={togglePlay}
-          className="absolute inset-0 flex items-center justify-center z-10 group"
+          className="absolute inset-0 flex items-center justify-center z-10 group-hover:bg-black/10 transition-colors"
         >
           {!isPlaying && (
             <div className="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
@@ -157,22 +211,22 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
       {isActive && (
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-5 z-20">
           {/* Like */}
-          <button onClick={(e) => { e.stopPropagation(); onLike() }} className="flex flex-col items-center gap-1 group">
+          <button onClick={(e) => { e.stopPropagation(); onLike() }} className="flex flex-col items-center gap-1 group/like">
             {liked
-              ? <FaHeart className="text-red-500 group-hover:scale-125 transition-transform" size={26} />
-              : <FaRegHeart className="text-white group-hover:scale-125 transition-transform" size={26} />}
+              ? <FaHeart className="text-red-500 group-hover/like:scale-125 transition-transform" size={26} />
+              : <FaRegHeart className="text-white group-hover/like:scale-125 transition-transform" size={26} />}
             <span className="text-white text-xs font-semibold">{likeCount}</span>
           </button>
 
           {/* Comments */}
-          <button onClick={(e) => { e.stopPropagation(); onOpenComments() }} className="flex flex-col items-center gap-1 group">
-            <FaCommentDots className="text-white group-hover:scale-125 transition-transform" size={26} />
+          <button onClick={(e) => { e.stopPropagation(); onOpenComments() }} className="flex flex-col items-center gap-1 group/comment">
+            <FaCommentDots className="text-white group-hover/comment:scale-125 transition-transform" size={26} />
             <span className="text-white text-xs font-semibold">{commentCount}</span>
           </button>
 
           {/* Share */}
-          <button onClick={handleShare} className="flex flex-col items-center gap-1 relative group">
-            <FaShareAlt className="text-white group-hover:scale-125 transition-transform" size={22} />
+          <button onClick={handleShare} className="flex flex-col items-center gap-1 relative group/share">
+            <FaShareAlt className="text-white group-hover/share:scale-125 transition-transform" size={22} />
 
             {copied && (
               <span className="absolute right-8 top-0 bg-black/80 text-white text-xs px-2 py-1 rounded-lg whitespace-nowrap">
@@ -180,6 +234,57 @@ const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
               </span>
             )}
           </button>
+
+          {/* Download */}
+          <button onClick={handleDownload} className="flex flex-col items-center gap-1 cursor-pointer" title="Download Video">
+            <FiDownload className="text-white hover:scale-125 transition-transform" size={24} />
+            <span className="text-white text-[10px] font-semibold">Save</span>
+          </button>
+        </div>
+      )}
+
+      {/* Control Bar */}
+      {isActive && (
+        <div className="absolute bottom-4 left-3 right-3 z-30 bg-black/60 backdrop-blur-md rounded-xl p-3 flex flex-col gap-2 transition-opacity duration-300 md:opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+          {/* Progress Slider */}
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={progress}
+              onChange={handleScrub}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-white focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-white text-xs">
+            <div className="flex items-center gap-3">
+              {/* Play/Pause Button */}
+              <button
+                type="button"
+                onClick={togglePlay}
+                className="hover:scale-115 transition-transform focus:outline-none cursor-pointer"
+              >
+                {isPlaying ? <FaPause size={12} /> : <FaPlay size={12} />}
+              </button>
+
+              {/* Mute/Unmute Button */}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onMuteToggle() }}
+                className="hover:scale-115 transition-transform focus:outline-none cursor-pointer"
+              >
+                {isMuted ? <FaVolumeMute size={14} /> : <FaVolumeUp size={14} />}
+              </button>
+
+              {/* Time Display */}
+              <span className="font-medium">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -344,7 +449,7 @@ const InnerModal: React.FC<InnerModalProps> = ({ videos, initialIndex, onClose }
                 height,
                 opacity,
                 transform: `
-                  translateX(${offset === -1 ? `calc(-${width / 2}px - 182px)` : offset === 1 ? `calc(${width / 2}px + 182px)` : '-50%'})
+                  translateX(${offset === -1 ? `calc(-${width / 2}px - 182px)` : offset === 1 ? `calc(${width / 2}px + 182px)` : '0px'})
                   translateX(-50%)
                   scale(${scale})
                 `,
@@ -362,6 +467,7 @@ const InnerModal: React.FC<InnerModalProps> = ({ videos, initialIndex, onClose }
                 likeCount={likeCounts[video.id] ?? video.likes}
                 commentCount={commentCounts[video.id] ?? video.comments ?? 0}
                 onLike={() => toggleLike(video.id)}
+                onMuteToggle={() => setIsMuted(m => !m)}
                 onOpenComments={() => handleOpenComments(video.id)}
               />
               {/* Side card click hint */}
