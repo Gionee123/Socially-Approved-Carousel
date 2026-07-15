@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { FiX, FiChevronLeft, FiChevronRight, FiSend } from 'react-icons/fi'
 import {
-  FaHeart, FaRegHeart, FaShareAlt, FaShoppingCart,
-  FaVolumeUp, FaVolumeMute, FaPlay, FaPause, FaCommentDots
+  FaHeart, FaRegHeart, FaShareAlt,
+  FaVolumeUp, FaVolumeMute, FaPlay, FaCommentDots
 } from 'react-icons/fa'
 import type { Video } from '../../data/dummyVideos'
 import axios from 'axios'
@@ -22,13 +22,12 @@ interface VideoPlayerCardProps {
   likeCount: number
   commentCount: number
   onLike: () => void
-  onShare: () => void
   onOpenComments: () => void
 }
 
 /* ─── Video Player Card ───────────────────────────────────────── */
 const VideoPlayerCard: React.FC<VideoPlayerCardProps> = ({
-  video, isActive, isMuted, liked, likeCount, commentCount, onLike, onShare, onOpenComments
+  video, isActive, isMuted, liked, likeCount, commentCount, onLike, onOpenComments
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -363,7 +362,6 @@ const InnerModal: React.FC<InnerModalProps> = ({ videos, initialIndex, onClose }
                 likeCount={likeCounts[video.id] ?? video.likes}
                 commentCount={commentCounts[video.id] ?? video.comments ?? 0}
                 onLike={() => toggleLike(video.id)}
-                onShare={() => { }}
                 onOpenComments={() => handleOpenComments(video.id)}
               />
               {/* Side card click hint */}

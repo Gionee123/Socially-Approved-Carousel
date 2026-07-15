@@ -19,7 +19,6 @@ export default function Addvideo() {
         status: 'true',
     })
     const [videoFile, setVideoFile] = useState<File | null>(null)
-    const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
     const [thumbnailPreview, setThumbnailPreview] = useState<string>('')
     const [isDragging, setIsDragging] = useState(false)
     const [uploading, setUploading] = useState(false)
@@ -63,7 +62,6 @@ export default function Addvideo() {
         const reader = new FileReader()
         reader.onload = (e) => setThumbnailPreview(e.target?.result as string)
         reader.readAsDataURL(file)
-        setThumbnailFile(file)
 
         // Upload to cloudinary via API
         setUploading(true)
@@ -165,7 +163,7 @@ export default function Addvideo() {
                             <img src={thumbnailPreview} alt="Thumbnail preview" className="w-full max-h-48 object-cover rounded-lg border border-gray-600" />
                             <button
                                 type="button"
-                                onClick={() => { setThumbnailPreview(''); setThumbnailFile(null); setForm(prev => ({ ...prev, thumbnail: '' })) }}
+                                onClick={() => { setThumbnailPreview(''); setForm(prev => ({ ...prev, thumbnail: '' })) }}
                                 className="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white rounded-full p-1 transition-colors"
                             >
                                 <FiX size={14} />
